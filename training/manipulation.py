@@ -9,7 +9,7 @@ import tqdm
 from collections import deque, OrderedDict
 
 # Disable unimportant logging and import TF
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
 
 # Load my TF models

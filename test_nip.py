@@ -10,9 +10,9 @@ from helpers import coreutils
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('test')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-supported_pipelines = ['UNet', 'DNet', 'INet']
+supported_pipelines = ['UNet', 'DNet', 'INet', 'OctUNet', 'UNet3D']
 
 
 def develop_image(camera, pipeline, ps=128, image_id=None, root_dir='./data/raw'):
@@ -20,16 +20,18 @@ def develop_image(camera, pipeline, ps=128, image_id=None, root_dir='./data/raw'
     Display a patch developed by a neural imaging pipeline.
     """
 
-    supported_cameras = coreutils.listdir(os.path.join(root_dir,  'nip_model_snapshots'), '.*')
+    supported_cameras = coreutils.listdir(os.path.join('./checkpoint', 'nip_model_snapshots'), '.*')
 
     if ps < 4 or ps > 2048:
         raise ValueError('Patch size seems to be invalid!')
 
     if pipeline not in supported_pipelines:
-        raise ValueError('Unsupported pipeline model ({})! Available models: {}'.format(pipeline, ', '.join(supported_pipelines)))
+        raise ValueError(
+            'Unsupported pipeline model ({})! Available models: {}'.format(pipeline, ', '.join(supported_pipelines)))
 
     if camera not in supported_cameras:
-        raise ValueError('Camera data not found ({})! Available cameras: {}'.format(camera, ', '.join(supported_cameras)))
+        raise ValueError(
+            'Camera data not found ({})! Available cameras: {}'.format(camera, ', '.join(supported_cameras)))
 
     image_id = image_id or 0
 
@@ -39,9 +41,9 @@ def develop_image(camera, pipeline, ps=128, image_id=None, root_dir='./data/raw'
     import matplotlib.pylab as plt
     import tensorflow as tf
     from models import pipelines
-    from skimage.measure import compare_psnr
+    from skimage.measure import compare_psnr, compare_ssim
 
-    root_dirname = os.path.join(root_dir, 'nip_model_snapshots')
+    root_dirname = os.path.join('./checkpoint', 'nip_model_snapshots')
     data_dirname = os.path.join(root_dir, 'nip_training_data', camera)
     files = coreutils.listdir(data_dirname, '.*\.npy')
 
@@ -68,25 +70,28 @@ def develop_image(camera, pipeline, ps=128, image_id=None, root_dir='./data/raw'
     yy = (sample_x.shape[1] - ps) // 2
     log.info('Using image {}'.format(files[image_id]))
     log.info('Cropping patch from input image x={}, y={}, size={}'.format(xx, yy, ps))
-    sample_x = sample_x[:, yy:yy+ps, xx:xx+ps, :].astype(np.float32) / (2**16 - 1)
+    sample_x = sample_x[:, yy:yy + ps, xx:xx + ps, :].astype(np.float32) / (2 ** 16 - 1)
     sample_x = np.repeat(sample_x, 20, axis=0)
 
     sample_y = model.process(sample_x)
     sample_y = sample_y[0:1]
     target_y = io.imread(os.path.join(data_dirname, files[image_id].replace('.npy', '.png')))
-    target_y = target_y[2*yy:2*(yy+ps), 2*xx:2*(xx+ps), :].astype(np.float32) / (2**8 - 1)
+    target_y = target_y[2 * yy:2 * (yy + ps), 2 * xx:2 * (xx + ps), :].astype(np.float32) / (2 ** 8 - 1)
     psnr_value = compare_psnr(target_y, sample_y.squeeze(), data_range=1.0)
+    ssim_value = compare_ssim(target_y, sample_y.squeeze(), multichannel=True)
     log.info('PSNR={:.1f} dB'.format(psnr_value))
+    log.info('SSIM={:.1f}'.format(ssim_value))
 
     # Plot the images
     plt.figure(figsize=(6, 6))
     plt.subplot(1, 2, 1)
     plt.imshow(sample_y.squeeze())
-    plt.title('{}, PSNR={:.1f} dB'.format(type(model).__name__, psnr_value))
+    plt.title('{}, PSNR={:.1f} dB, SSIM={:.1f}'.format(type(model).__name__, psnr_value, ssim_value))
     plt.subplot(1, 2, 2)
     plt.imshow(target_y)
     plt.title('Target')
     plt.show()
+    plt.savefig(os.path.join(root_dirname, camera, pipeline.lower()) + str(image_id) + '_test.png')
     plt.close()
 
 
@@ -98,7 +103,7 @@ def main():
                         help='image id (n-th image in the camera\'s directory')
     parser.add_argument('--patch', dest='patch', action='store', default=128, type=int,
                         help='patch size')
-    parser.add_argument('--dir', dest='dir', action='store', default='./data/raw/',
+    parser.add_argument('--dir', dest='dir', action='store', default='../../datasets/raw/',
                         help='root directory with images and training data')
 
     args = parser.parse_args()

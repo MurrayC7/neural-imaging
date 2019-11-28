@@ -13,16 +13,16 @@ from helpers import raw_api, coreutils
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('data')
 
-EXTENSIONS = '(NEF|DNG|CR2|AWR)'
+EXTENSIONS = '(NEF|DNG|CR2|AWR|dng)'
 
 
-def prepare_training_set(camera, target_pipeline, dev_settings, n_images=150, root_dir='./data/raw/'):
+def prepare_training_set(camera, target_pipeline, dev_settings, n_images=150, root_dir='./data/raw/', raw_dir=''):
 
-    if target_pipeline not in ['auto', 'manual']:
+    if target_pipeline not in ['auto', 'manual', 'camera']:
         raise ValueError('Unsupported target pipeline!')
 
-    raw_directory = os.path.join(root_dir, 'images', camera)
-    out_directory = os.path.join(root_dir, 'nip_training_data', camera)
+    raw_directory = raw_dir
+    out_directory = os.path.join(root_dir, camera)
 
     if not os.path.exists(raw_directory):
         log.error('Directory not found! {}'.format(raw_directory))
@@ -69,7 +69,7 @@ def prepare_training_set(camera, target_pipeline, dev_settings, n_images=150, ro
 
         try:
             if not os.path.exists(out_npy):
-                image_bayer = raw_api.stacked_bayer(os.path.join(raw_directory, nef_file), use_wb=True)
+                image_bayer = raw_api.stacked_bayer(os.path.join(raw_directory, nef_file), camera, use_wb=True)
                 image_bayer = ((2**16 - 1) * image_bayer).astype(np.uint16)
                 np.save(out_npy, image_bayer)
 
@@ -78,9 +78,12 @@ def prepare_training_set(camera, target_pipeline, dev_settings, n_images=150, ro
                     rgb = raw_api.process_auto(os.path.join(raw_directory, nef_file))
                 elif target_pipeline == 'manual':
                     rgb = 255 * raw_api.process(os.path.join(raw_directory, nef_file), **dev_settings)
+                elif target_pipeline == 'camera':
+                    out_jpg = os.path.join(out_directory, os.path.splitext(nef_file)[0] + '.JPG')
                 else:
                     raise ValueError('Unsupported develop mode!')
-                imageio.imwrite(out_png, rgb.astype(np.uint8))
+                if target_pipeline != 'camera':
+                    imageio.imwrite(out_png, rgb.astype(np.uint8))
 
         except Exception as error:
             log.error('RAW Processing failed for file: {}'.format(nef_file))
@@ -95,10 +98,12 @@ def main():
     parser.add_argument('--cam', dest='camera', action='store', help='camera')
     parser.add_argument('--target', dest='target', action='store', default='manual',
                         help='target for optimization (manual or auto)')
-    parser.add_argument('--dir', dest='dir', action='store', default='./data/raw/',
+    parser.add_argument('--out_dir', dest='out_dir', action='store', default='../../datasets/raw/nip_training_data/',
                         help='root directory with images and training data')
     parser.add_argument('--images', dest='images', action='store', default=150, type=int,
                         help='number of images to prepare')
+    parser.add_argument('--raw_dir', dest='raw_dir', action='store', default='../../datasets/raw/eosr/burst7/',
+                        help='root directory with training images')
 
     args = parser.parse_args()
 
@@ -107,7 +112,7 @@ def main():
         parser.print_usage()
         sys.exit(1)
 
-    prepare_training_set(args.camera, args.target, None, args.images, args.dir)
+    prepare_training_set(args.camera, args.target, None, args.images, args.out_dir, args.raw_dir)
 
 
 if __name__ == "__main__":

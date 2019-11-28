@@ -6,7 +6,7 @@ import os
 import argparse
 
 # Disable unimportant logging and import TF
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # Helper functions
 from helpers import coreutils, dataset

@@ -11,18 +11,18 @@ from helpers import coreutils
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('data')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 extensions = '(npy)'
 raw_extensions = ['.nef', '.dng', '.NEF', '.DNG']
-supported_pipelines = ['libRAW', 'Python', 'INet', 'DNet', 'UNet']
+supported_pipelines = ['libRAW', 'Python', 'INet', 'DNet', 'UNet', 'OctUNet', 'UNet3D']
 
 
-def develop_images(camera, pipeline, n_images=0, root_dir='./data/raw/', model_dir='nip_model_snapshots', dev_dir='nip_developed', nip_params=None):
-
+def develop_images(camera, pipeline, n_images=0, root_dir='./data/raw/', model_dir='nip_model_snapshots',
+                   dev_dir='nip_developed', nip_params=None):
     if pipeline not in supported_pipelines:
-        raise ValueError('Unsupported pipeline model ({})! Available models: {}'.format(pipeline, ', '.join(supported_pipelines)))
+        raise ValueError(
+            'Unsupported pipeline model ({})! Available models: {}'.format(pipeline, ', '.join(supported_pipelines)))
 
     dir_models = os.path.join(root_dir, model_dir)
     nip_directory = os.path.join(root_dir, 'nip_training_data', camera)
@@ -55,9 +55,9 @@ def develop_images(camera, pipeline, n_images=0, root_dir='./data/raw/', model_d
     manual_dev_settings = {'use_srgb': True, 'use_gamma': True, 'brightness': None}
 
     # Setup the NIP model
-    if pipeline.endswith('Net'):
+    if 'Net' in pipeline:
         sess = tf.Session()
-        model = getattr(pipelines, pipeline)(sess, tf.get_default_graph(), loss_metric='L2', **nip_params)
+        model = getattr(pipelines, pipeline)(sess, tf.get_default_graph(), loss_metric='L1', **nip_params)
         model.load_model(camera, out_directory_root=dir_models)
 
     # Limit the number of images
@@ -91,7 +91,7 @@ def develop_images(camera, pipeline, n_images=0, root_dir='./data/raw/', model_d
             else:
                 # Find the cached Bayer stack
                 bayer_file = os.path.join(nip_directory, npy_file)
-                bayer_stack = np.load(bayer_file).astype(np.float32) / (2**16 - 1)
+                bayer_stack = np.load(bayer_file).astype(np.float32) / (2 ** 16 - 1)
                 rgb = 255 * model.process(bayer_stack).squeeze()
                 rgb = rgb.astype(np.uint8)
 
@@ -103,13 +103,14 @@ def main():
     parser.add_argument('--cam', dest='camera', action='store', help='camera')
     parser.add_argument('--pipe', dest='pipeline', action='store', default='libRAW',
                         help='imaging pipeline ({})'.format(supported_pipelines))
-    parser.add_argument('--dir', dest='dir', action='store', default='./data/raw/',
+    parser.add_argument('--dir', dest='dir', action='store', default='../../datasets/raw/nip_training_data/',
                         help='root directory with images and training data')
     parser.add_argument('--model_dir', dest='model_dir', action='store', default='nip_model_snapshots',
-                        help='directory with TF models')                        
+                        help='directory with TF models')
     parser.add_argument('--dev_dir', dest='dev_dir', action='store', default='nip_developed',
                         help='output directory')
-    parser.add_argument('--params', dest='nip_params', default=None, help='Extra parameters for NIP constructor (JSON string)')    
+    parser.add_argument('--params', dest='nip_params', default=None,
+                        help='Extra parameters for NIP constructor (JSON string)')
     parser.add_argument('--images', dest='images', action='store', default=0, type=int,
                         help='number of images to process')
 
@@ -128,7 +129,8 @@ def main():
         sys.exit(2)
 
     try:
-        develop_images(args.camera, args.pipeline, args.images, args.dir, args.model_dir, args.dev_dir, nip_params=args.nip_params)
+        develop_images(args.camera, args.pipeline, args.images, args.dir, args.model_dir, args.dev_dir,
+                       nip_params=args.nip_params)
     except Exception as error:
         log.error(error)
 

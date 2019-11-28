@@ -34,7 +34,7 @@ def confusion(mc, data, lagel_generator, label_multiplier=1):
     return conf / data.count_validation
 
 
-def validate_nip(model, data, save_dir=False, epoch=0, show_ref=False, loss_type='L2'):
+def validate_nip(model, data, save_dir=False, epoch=0, show_ref=False, loss_type='L1'):
     """ Develops image patches using the given NIP and returns standard image quality measures.
         If requested, resulting patches are visualized as thumbnails and saved to a directory.
     """

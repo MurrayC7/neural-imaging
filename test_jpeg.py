@@ -10,7 +10,7 @@ from matplotlib import pylab as plt
 from models.jpeg import DJPG
 
 # Disable unimportant logging and import TF
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 DEFAULT_IMAGE = 'docs/schematic_overview.png'
 

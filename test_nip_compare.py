@@ -13,7 +13,7 @@ from helpers import coreutils
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('test')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 supported_pipelines = ['UNet', 'DNet', 'INet']
 

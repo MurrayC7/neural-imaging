@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('raw_api')
 
 
-def stacked_bayer(filename, use_wb=True):
+def stacked_bayer(filename, camera, use_wb=True):
     """
     Get a RGGB Bayer stack from a RAW image.
     :param filename: RAW image
@@ -15,7 +15,16 @@ def stacked_bayer(filename, use_wb=True):
     """
     with Raw(filename) as raw:
         raw.unpack()
-        image_raw = np.array(raw.raw_image(), dtype=np.float32)
+        image_raw = np.array(raw.raw_image(include_margin=True), dtype=np.float32)
+        if 'EOSR' in camera:
+            ### Crop the border
+            # Sensor Width                    : 6888
+            # Sensor Height                   : 4546
+            # Sensor Left Border              : 156
+            # Sensor Top Border               : 58
+            # Sensor Right Border             : 6875
+            # Sensor Bottom Border            : 4537
+            image_raw = image_raw[57:4537, 155:6875]
 
         # Normalization and calibration
         black = raw.data.contents.color.black
